@@ -2,72 +2,82 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
+use App\Models\User;
 
 class AuthController extends Controller
 {
+    // Inscription
     public function register(Request $request)
     {
-        // Validation des données
         $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
-            'password' => 'required|string|min:8|confirmed',
+            'email' => 'required|string|email|unique:users',
+            'password' => 'required|string|confirmed|min:8',
         ]);
 
-        // Création de l'utilisateur
         $user = User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
 
-        // Réponse JSON
+        $token = $user->createToken('auth_token')->plainTextToken;
+
         return response()->json([
-            'message' => 'Inscription réussie',
-            'user' => $user
+            'user' => $user,
+            'token' => $token
         ], 201);
     }
 
+    //  Connexion
     public function login(Request $request)
     {
-        // Validation des données
         $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string|min:8',
+            'email' => 'required|string|email',
+            'password' => 'required|string',
         ]);
 
         $user = User::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Identifiants incorrects'], 401);
+        }
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'user' => $user,
+            'token' => $token
+        ]);
+    }
+
+    //  Déconnexion
+    public function logout(Request $request)
+    {
+        // Récupérer l'utilisateur via Sanctum
+        $user = Auth::guard('sanctum')->user();
+
+        if (! $user) {
             return response()->json([
-                'message' => 'Identifiants invalides'
+                'message' => 'Aucun utilisateur authentifié'
             ], 401);
         }
 
-        // Connexion de l’utilisateur avec Sanctum
-        Auth::login($user);
+        $token = $user->currentAccessToken();
+
+        if (! $token) {
+            return response()->json([
+                'message' => 'Token invalide ou déjà révoqué'
+            ], 401);
+        }
+
+        $token->delete();
 
         return response()->json([
-            'status' => 'success',
-            'message' => 'Connexion réussie',
-            'user' => $user
-        ], 200);
-        
+            'message' => 'Déconnexion réussie'
+        ]);
     }
-
-    public function logout(Request $request)
-{
-    if (Auth::check()) {
-        Auth::guard('web')->logout();
-    }
-
-    return response()->json([
-        'message' => 'Déconnexion réussie'
-    ]);
-}
-
 }
