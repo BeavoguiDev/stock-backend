@@ -20,7 +20,7 @@ return new class extends Migration
             $table->integer('quantity');
             $table->integer('threshold');
             $table->date('expiry_date')->nullable();
-            $table->unsignedBigInteger('supplier_id')->nullable();
+            $table->foreignId('supplier_id')->nullable()->constrained()->onDelete('set null');
             $table->timestamps();
         });
     }

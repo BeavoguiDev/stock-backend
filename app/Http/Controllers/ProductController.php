@@ -18,7 +18,7 @@ class ProductController extends Controller
             ? (int) $request->query('category_id')
             : null;
 
-        $query = Product::query();
+        $query = Product::with(['category', 'supplier']); 
 
         if (!empty($search)) {
             $query->where('name', 'like', '%' . $search . '%');
@@ -31,6 +31,7 @@ class ProductController extends Controller
     }
 
 
+
     /**
      * Store a newly created resource in storage.
      */
@@ -39,6 +40,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'name' => 'required|string',
             'category_id' => 'required|integer',
+            'supplier_id' => 'nullable|exists:suppliers,id', 
             'buying_price' => 'required|numeric',
             'selling_price' => 'required|numeric',
             'quantity' => 'required|integer',
@@ -80,6 +82,7 @@ class ProductController extends Controller
         $validated = $request->validate([
             'name' => 'required|string',
             'category_id' => 'required|integer',
+            'supplier_id' => 'nullable|exists:suppliers,id', 
             'buying_price' => 'required|numeric',
             'selling_price' => 'required|numeric',
             'quantity' => 'required|integer',

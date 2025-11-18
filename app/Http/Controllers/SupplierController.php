@@ -7,9 +7,18 @@ use Illuminate\Http\Request;
 
 class SupplierController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return Supplier::with('products')->get();
+        $perPage = (int) $request->query('per_page', 5); 
+        $search = $request->query('search');
+
+        $query = Supplier::with('products');
+
+        if (!empty($search)) {
+            $query->where('name', 'like', '%' . $search . '%');
+        }
+
+        return $query->orderBy('created_at', 'desc')->paginate($perPage);
     }
 
     public function show($id)
@@ -28,7 +37,7 @@ class SupplierController extends Controller
         $validated = $request->validate([
             'name' => 'required|string',
             'email' => 'required|email|unique:suppliers,email',
-            'phone' => 'required|string',
+            'phone' => 'required|string|min:9|max:13',
             'takes_back_returns' => 'boolean',
         ]);
 
