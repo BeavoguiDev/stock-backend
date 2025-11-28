@@ -9,24 +9,29 @@ use Illuminate\Http\Request;
 
 class PurchaseOrderController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index(Request $request)
     {
+        $perPage = $request->query('per_page', 5);
+
         $query = PurchaseOrder::with('product.category', 'supplier');
 
-        // ✅ Filtrage par statut si fourni
-        if ($request->has('status')) {
+        if ($request->has('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
 
-        // ✅ Tri par date (optionnel)
+        if ($request->has('product_id')) {
+            $query->where('product_id', $request->product_id);
+        }
+
+        if ($request->has('supplier_id')) {
+            $query->where('supplier_id', $request->supplier_id);
+        }
+
         $query->orderBy('order_date', 'desc');
 
-        // ✅ Pagination (10 par page par défaut)
-        return $query->paginate(10);
+        return $query->paginate($perPage);
     }
+
 
 
     /**
@@ -76,24 +81,25 @@ class PurchaseOrderController extends Controller
     {
         $order = PurchaseOrder::findOrFail($id);
 
+        // ✅ Validation complète des champs modifiables
         $validated = $request->validate([
-            'status' => 'required|string',
+            'product_id' => 'sometimes|exists:products,id',
+            'supplier_id' => 'sometimes|exists:suppliers,id',
+            'quantity' => 'sometimes|integer|min:1',
+            'expected_date' => 'sometimes|date',
+            'status' => 'required|string'
         ]);
 
-        $order->status = $validated['status'];
+        // ✅ Mise à jour des champs
+        $order->update($validated);
 
-        if ($validated['status'] === 'Delivered' && !$order->received) {
-            $product = $order->product;
-            $product->quantity += $order->quantity;
-            $product->save();
+        // ✅ Recharger les relations pour la réponse
+        $order->load(['product', 'supplier']);
 
-            $order->received = true;
-            $order->received_date = now();
-        }
-
-        $order->save();
-
-        return response()->json($order->load('product','supplier'));
+        return response()->json([
+            'message' => 'Commande mise à jour avec succès',
+            'data' => $order
+        ]);
     }
 
 
@@ -105,12 +111,12 @@ class PurchaseOrderController extends Controller
         $order = PurchaseOrder::findOrFail($id);
 
         if ($order->received) {
-            return response()->json(['error' => 'Cannot delete a delivered order'], 400);
+            return response()->json(['error' => 'Impossible de supprimer une commande livrée'], 400);
         }
 
         $order->delete();
 
-        return response()->json(['message' => 'Order deleted']);
+        return response()->json(['message' => 'Commande supprimée']);
     }
 
 }

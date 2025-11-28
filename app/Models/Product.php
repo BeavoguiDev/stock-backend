@@ -20,6 +20,11 @@ class Product extends Model
         'supplier_id',
         'image',
     ];
+    protected $casts = [
+        'buying_price' => 'float',
+        'selling_price' => 'float',
+    ];
+
 
     public function category()
     {

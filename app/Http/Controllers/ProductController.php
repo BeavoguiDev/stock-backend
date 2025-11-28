@@ -7,9 +7,6 @@ use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
      public function index(Request $request)
     {
         $search = $request->query('search');
@@ -17,6 +14,7 @@ class ProductController extends Controller
         $categoryId = $request->has('category_id')
             ? (int) $request->query('category_id')
             : null;
+        $stockFilter = $request->query('stock'); // rupture | low | in
 
         $query = Product::with(['category', 'supplier']); 
 
@@ -27,8 +25,20 @@ class ProductController extends Controller
             $query->where('category_id', $categoryId);
         }
 
+        if (!empty($stockFilter)) {
+            if ($stockFilter === 'rupture') {
+                $query->where('quantity', '=', 0);
+            } elseif ($stockFilter === 'low') {
+                $query->whereColumn('quantity', '<=', 'threshold')
+                    ->where('quantity', '>', 0);
+            } elseif ($stockFilter === 'in') {
+                $query->whereColumn('quantity', '>', 'threshold');
+            }
+        }
+
         return $query->orderBy('created_at', 'desc')->paginate($perPage);
     }
+
 
 
 

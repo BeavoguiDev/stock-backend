@@ -18,7 +18,7 @@ return new class extends Migration
             $table->integer('quantity');
             $table->timestamp('order_date')->useCurrent();
             $table->date('expected_date')->nullable();
-            $table->string('status')->default('Confirmed'); // Confirmed, Out for delivery, Delayed, Returned, Delivered
+            $table->string('status')->default('Confirmed'); 
             $table->decimal('order_value', 10, 2);
             $table->boolean('received')->default(false);
             $table->timestamp('received_date')->nullable();

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 
 class SupplierController extends Controller
 {
+    
     public function index(Request $request)
     {
         $perPage = (int) $request->query('per_page', 5); 
@@ -18,8 +19,37 @@ class SupplierController extends Controller
             $query->where('name', 'like', '%' . $search . '%');
         }
 
-        return $query->orderBy('created_at', 'desc')->paginate($perPage);
+        // 👉 C’est ici qu’on ajoute ton filtre
+        if ($request->has('takes_back_returns')) {
+            $query->where(
+                'takes_back_returns',
+                filter_var($request->query('takes_back_returns'), FILTER_VALIDATE_BOOLEAN)
+            );
+        }
+
+        // ✅ Paginer les fournisseurs
+        $suppliers = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+        // ✅ Ajouter le champ calculé "on_the_way" à chaque fournisseur
+        $suppliers->getCollection()->transform(function ($supplier) {
+            $onTheWay = $supplier->purchaseOrders()
+                ->whereNotIn('status', ['Delivered', 'Returned'])
+                ->sum('quantity');
+
+            $supplier->on_the_way = $onTheWay;
+            return $supplier;
+        });
+
+        return response()->json([
+            'data' => $suppliers->items(),
+            'meta' => [
+                'current_page' => $suppliers->currentPage(),
+                'last_page' => $suppliers->lastPage(),
+                'total' => $suppliers->total()
+            ]
+        ]);
     }
+
 
     public function show($id)
     {
@@ -74,8 +104,14 @@ class SupplierController extends Controller
             return response()->json(['message' => 'Fournisseur introuvable'], 404);
         }
 
+        // ✅ Supprimer toutes les commandes non livrées liées à ce fournisseur
+        $supplier->purchaseOrders()
+            ->whereNotIn('status', ['Delivered', 'Returned'])
+            ->delete();
+
         $supplier->delete();
 
         return response()->json(null, 204);
     }
+
 }
